@@ -3,6 +3,8 @@ import std::*;
 
 
 import io;
+import io::reader;
+import io::writer;
 import to_str;
 import to_str::to_str;
 import task;
@@ -25,7 +27,10 @@ class Bot {
     
     let sock: socket::tcp_socket_buf;
 
-    new(host: str, port:uint) {
+    /**
+     * Creates a new bot that connects to host:port with the given nick
+     */
+    new(host:str, port:uint) {
         
         let ip = ip::v4::parse_addr(host);
         let task = iotask::spawn_iotask(task::builder());
@@ -42,6 +47,60 @@ class Bot {
         
         let unbuffered = result::unwrap(res);
         self.sock = socket::socket_buf(unbuffered);
+    }
+    
+    /**
+     * Reads a line from the server. Blocks until the read is completed.
+     * 
+     * # Returns
+     * The received text
+     */
+    fn read_line() -> str {
+
+        let read = sock as reader;
+        let recv = read.read_line().trim();
+        
+        #info[ "[→] %s", recv ];
+        
+        ret recv;
+    }
+    
+    /**
+     * Sends a raw command to the IRC server. Appends linefeeds.
+     * 
+     * # Arguments
+     * * `text` -- The command to send
+     */
+    fn send_raw(text: str) {
+
+        let write = sock as writer;
+
+        write.write_str(text + "\r\n");
+        write.flush();
+
+        #info[ "[←] %s", text ];
+    }
+    
+    /**
+     * Sends a private message to a person or channel.
+     * 
+     * # Arguments
+     * * `target` -- The target that should receive the message
+     * * `message` -- The message to send
+     */
+    fn send_msg(target: str, message: str) {
+        send_raw("PRIVMSG " + target + " :" + message);
+    }
+    
+    /**
+     * Sends a notice to a person or channel.
+     * 
+     * # Arguments
+     * * `target` -- The target that should receive the message
+     * * `message` -- The message to send.
+     */
+    fn send_notice(target: str, message: str) {
+        send_raw("NOTICE " + target + " :" + message);
     }
 }
 
