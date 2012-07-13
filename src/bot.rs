@@ -31,7 +31,7 @@ fn main() {
 
 class Bot {
     
-    let sock: socket::tcp_socket_buf;
+    let sock: @socket::tcp_socket_buf;
 
     // /**
     //  * Creates a new bot that connects to host:port
@@ -51,12 +51,12 @@ class Bot {
             #error[ "Failed to connect to target: %?", res.get_err() ];
             // UGLY, but needed - flow analysis else thinks the sock is not set
             let unbuffered = result::unwrap(res);
-            self.sock = socket::socket_buf(unbuffered);
+            self.sock = @socket::socket_buf(unbuffered);
             fail;   // Will have failed already
         }
         
         let unbuffered = result::unwrap(res);
-        self.sock = socket::socket_buf(unbuffered);
+        self.sock = @socket::socket_buf(unbuffered);
     }
     
     /**
