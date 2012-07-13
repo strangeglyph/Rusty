@@ -2,6 +2,7 @@ use std;
 
 import result::result;
 import io;
+import io::reader;
 
 import std::map;
 
@@ -10,6 +11,7 @@ export load;
 export save;
 
 fn load(filename: str) -> result<map::hashmap<str, ~[str]>, str> {
+    
     let res = io::file_reader(filename);
     
     if (res.is_err()) { 

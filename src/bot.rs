@@ -1,17 +1,23 @@
 use std;
 import std::*;
 
-
+// core imports
 import io;
 import io::reader;
 import io::writer;
+
 import to_str;
 import to_str::to_str;
+
 import task;
+
 import result;
 
+
+// std imports
 import ip = net::ip;
 import socket = net::tcp;
+
 import uv::iotask;
 import uv::iotask::iotask;
 
@@ -20,16 +26,20 @@ import uv::iotask::iotask;
 
 fn main() {
     let bot = Bot("100.100.100.100", 6667);
-    println(0 as to_str);
+    #info[ "Done" ];
 }
 
 class Bot {
     
     let sock: socket::tcp_socket_buf;
 
-    /**
-     * Creates a new bot that connects to host:port with the given nick
-     */
+    // /**
+    //  * Creates a new bot that connects to host:port
+    //  * 
+    //  * # Arguments
+    //  * * `host` -- The host name of the target
+    //  * * `port` -- The target port
+    //  */
     new(host:str, port:uint) {
         
         let ip = ip::v4::parse_addr(host);
@@ -42,7 +52,7 @@ class Bot {
             // UGLY, but needed - flow analysis else thinks the sock is not set
             let unbuffered = result::unwrap(res);
             self.sock = socket::socket_buf(unbuffered);
-            fail;
+            fail;   // Will have failed already
         }
         
         let unbuffered = result::unwrap(res);
@@ -57,12 +67,25 @@ class Bot {
      */
     fn read_line() -> str {
 
-        let read = sock as reader;
-        let recv = read.read_line().trim();
+        let recv = self.read().trim();
         
         #info[ "[→] %s", recv ];
         
         ret recv;
+    }
+    
+    priv {
+        fn read() -> str {
+            
+            let mut buf = ~[];
+            
+            loop {
+                let ch = self.sock.read_byte();
+                if ch == -1 || ch == 10 { break; }  // End of stream or \n
+                vec::push(buf, ch as u8);
+            }
+            ret str::from_bytes(buf);
+        }
     }
     
     /**
@@ -73,10 +96,8 @@ class Bot {
      */
     fn send_raw(text: str) {
 
-        let write = sock as writer;
-
-        write.write_str(text + "\r\n");
-        write.flush();
+        self.sock.write_str(text + "\r\n");
+        self.sock.flush();
 
         #info[ "[←] %s", text ];
     }
@@ -89,7 +110,7 @@ class Bot {
      * * `message` -- The message to send
      */
     fn send_msg(target: str, message: str) {
-        send_raw("PRIVMSG " + target + " :" + message);
+        self.send_raw("PRIVMSG " + target + " :" + message);
     }
     
     /**
@@ -100,19 +121,6 @@ class Bot {
      * * `message` -- The message to send.
      */
     fn send_notice(target: str, message: str) {
-        send_raw("NOTICE " + target + " :" + message);
+        self.send_raw("NOTICE " + target + " :" + message);
     }
-}
-
-
-
-
-
-// String utilities
-fn println(anything: to_str) {
-    io::println(anything.to_str());
-}
-
-fn print(anything: to_str) {
-    io::print(anything.to_str());
 }
