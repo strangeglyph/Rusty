@@ -3,8 +3,8 @@ import std::*;
 
 // core imports
 import io;
-import io::reader;
-import io::writer;
+import io::{reader, reader_util};
+import io::{writer, writer_util};
 
 import to_str;
 import to_str::to_str;
