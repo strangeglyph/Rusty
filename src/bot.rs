@@ -3,6 +3,7 @@ import std::*;
 
 // core imports
 import io;
+import io::println;
 import io::{reader, reader_util};
 import io::{writer, writer_util};
 
@@ -17,6 +18,7 @@ import result;
 // std imports
 import ip = net::ip;
 import socket = net::tcp;
+import net::tcp::tcp_socket_buf;
 
 import uv::iotask;
 import uv::iotask::iotask;
@@ -24,15 +26,27 @@ import uv::iotask::iotask;
 
 
 
-fn main() {
-    let bot = Bot("100.100.100.100", 6667);
-    #info[ "Done" ];
+fn main(args: ~[str]) {
+    
+    #debug[ "Entering main method" ];
+    
+    let bot = Bot("178.79.132.147", 6667); // esper
+    
+    #info[ "Connected" ];
+    
+    loop {
+        bot.read_line();
+        break;
+    }
+    
+    println("Done");
 }
 
 class Bot {
     
-    let sock: @socket::tcp_socket_buf;
+    let sock: @tcp_socket_buf;
 
+    // Parser breaks with doc strings over constructors
     // /**
     //  * Creates a new bot that connects to host:port
     //  * 
@@ -42,19 +56,25 @@ class Bot {
     //  */
     new(host:str, port:uint) {
         
+        #info[ "Getting ip for host %s", host ];
         let ip = ip::v4::parse_addr(host);
         let task = iotask::spawn_iotask(task::builder());
         
+        
+        #info[ "Connecting socket (%s:%u)", host, port ];
         let res = socket::connect(ip, port, task);
         
         if res.is_err() {
-            #error[ "Failed to connect to target: %?", res.get_err() ];
+            let err <- res.get_err();
+            #error[ "Failed to connect to target: %?", err ];
             // UGLY, but needed - flow analysis else thinks the sock is not set
             let unbuffered = result::unwrap(res);
             self.sock = @socket::socket_buf(unbuffered);
             fail;   // Will have failed already
         }
         
+        
+        #debug[ "Unwrapping and buffering" ];
         let unbuffered = result::unwrap(res);
         self.sock = @socket::socket_buf(unbuffered);
     }
@@ -67,27 +87,13 @@ class Bot {
      */
     fn read_line() -> str {
 
-        let recv = self.read().trim();
-        
-        #info[ "[→] %s", recv ];
+        let read = self.sock as reader;
+        let recv = read.read_line();
+        println( #fmt["[→] %s", recv] );
         
         ret recv;
     }
-    
-    priv {
-        fn read() -> str {
-            
-            let mut buf = ~[];
-            
-            loop {
-                let ch = self.sock.read_byte();
-                if ch == -1 || ch == 10 { break; }  // End of stream or \n
-                vec::push(buf, ch as u8);
-            }
-            ret str::from_bytes(buf);
-        }
-    }
-    
+        
     /**
      * Sends a raw command to the IRC server. Appends linefeeds.
      * 
@@ -96,10 +102,11 @@ class Bot {
      */
     fn send_raw(text: str) {
 
-        self.sock.write_str(text + "\r\n");
-        self.sock.flush();
+        let writer = self.sock as writer;
+        writer.write_str(text + "\r\n");
+        writer.flush();
 
-        #info[ "[←] %s", text ];
+        println( #fmt["[←] %s", text] );
     }
     
     /**
