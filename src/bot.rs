@@ -26,7 +26,7 @@ import uv::iotask::iotask;
 
 
 
-fn main(args: ~[str]) {
+fn main() {
     
     #debug[ "Entering main method" ];
     
@@ -36,7 +36,7 @@ fn main(args: ~[str]) {
     
     loop {
         bot.read_line();
-        break;
+        bot.disconnect("Bye");
     }
     
     println("Done");
@@ -44,7 +44,10 @@ fn main(args: ~[str]) {
 
 class Bot {
     
-    let sock: @tcp_socket_buf;
+    priv {
+        let sock: @tcp_socket_buf;
+        let mut connected: bool;
+    }
 
     // Parser breaks with doc strings over constructors
     // /**
@@ -70,6 +73,7 @@ class Bot {
             // UGLY, but needed - flow analysis else thinks the sock is not set
             let unbuffered = result::unwrap(res);
             self.sock = @socket::socket_buf(unbuffered);
+            self.connected = false;
             fail;   // Will have failed already
         }
         
@@ -77,6 +81,7 @@ class Bot {
         #debug[ "Unwrapping and buffering" ];
         let unbuffered = result::unwrap(res);
         self.sock = @socket::socket_buf(unbuffered);
+        self.connected = true;
     }
     
     /**
@@ -86,6 +91,8 @@ class Bot {
      * The received text
      */
     fn read_line() -> str {
+
+        if (!self.connected) { fail "Disconnected" };
 
         let read = self.sock as reader;
         let recv = read.read_line();
@@ -101,6 +108,8 @@ class Bot {
      * * `text` -- The command to send
      */
     fn send_raw(text: str) {
+
+        if (!self.connected) { fail "Disconnected" };
 
         let writer = self.sock as writer;
         writer.write_str(text + "\r\n");
@@ -129,5 +138,18 @@ class Bot {
      */
     fn send_notice(target: str, message: str) {
         self.send_raw("NOTICE " + target + " :" + message);
+    }
+    
+    
+    /**
+     * Disconnects the bot from the server.
+     * All subsequent reads and writes will fail.
+     * 
+     * # Arguments
+     * * `reason` -- The reason to give the server for the disconnect
+     */
+    fn disconnect(reason: str) {
+        self.send_raw("QUIT :" + reason);
+        self.connected = false;
     }
 }
