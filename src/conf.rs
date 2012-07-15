@@ -13,6 +13,15 @@ import std::map::*;
 export load;
 export save;
 
+/**
+ * Loads a configuration file into a hashmap.
+ * 
+ * # Arguments
+ * * `filename` -- The path to the configuration file.
+ * 
+ * # Returns
+ * The hashmap if everything went well, an error otherwise.
+ */
 fn load(filename: str) -> result<map::hashmap<str, ~[str]>, str> {
     
     #debug[ "Opening conf file '%s'", filename ];
@@ -55,20 +64,44 @@ fn load(filename: str) -> result<map::hashmap<str, ~[str]>, str> {
     ret result::ok(conf)
 }
 
+/**
+ * Saves a configuration hashmap to a file.
+ * 
+ * # Arguments
+ * * `conf` -- The map to save
+ * * `filename` -- The path to the file where the map should be saved
+ * 
+ * # Returns
+ * result::ok if everything went okay, result::err if an error occurred
+ */
 fn save(conf: map::hashmap<str, ~[str]>, filename: str) -> result<str, str> {
     ret result::ok("OK");
 }
 
-#[test]
-fn testLoad() {
-    #error[ "=== Start load() test" ];
-    load("bot.conf");
-    #error[ "=== End load() test" ];
+fn vec_to_str(vec: ~[str]) -> str {
+    
+    let mut res = "";
+    let mut first = true;
+    
+    for vec.each |part| {
+        if part.trim() == "" { again; } // Don't add empty strings
+        
+        if (!first) { res += ";"; }     // Add separators
+        else        { first = false; }  
+
+        res += part.trim();             // Remove superfluous whitespace
+    };
+    
+    ret res;
 }
 
 #[test]
-fn testCompleteness() {
-    #error[ "=== Start completeness test" ];
+fn test_load() {
+    load("bot.conf");
+}
+
+#[test]
+fn test_completeness() {
     let result = load("bot.conf");
     
     assert result.is_ok();
@@ -81,12 +114,10 @@ fn testCompleteness() {
     assert conf.contains_key("host");
     assert conf.contains_key("port");
     assert conf.contains_key("chan");
-    #error[ "=== End completeness test" ];
 }
 
 #[test]
-fn testMultiItems() {
-    #error[ "=== Start multi-item test" ];
+fn test_multi_items() {
     let result = load("bot.conf");
     let conf = result.get();
     let chans = conf.get("chan");
@@ -98,6 +129,21 @@ fn testMultiItems() {
     assert vec::contains(chans, "#d");
     assert vec::contains(chans, "#e");
     assert vec::contains(chans, "#f");
+}
+
+#[test]
+fn test_vec2str() {
+    let vec1 = ~["a","b","c","d","e"];
+    let str1 = "a;b;c;d;e";
+    let vec2 = ~["ab", "cde"];
+    let str2 = "ab;cde";
+    let vec3 = ~["     abc    ", "     de"];
+    let str3 = "abc;de";
+    let vec4 = ~["abcde"];
+    let str4 = "abcde";
     
-    #error[ "=== End multi-item test" ];
+    assert vec_to_str(vec1) == str1;
+    assert vec_to_str(vec2) == str2;
+    assert vec_to_str(vec3) == str3;
+    assert vec_to_str(vec4) == str4;
 }
