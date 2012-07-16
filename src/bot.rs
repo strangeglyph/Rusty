@@ -23,7 +23,8 @@ import net::tcp::tcp_socket_buf;
 import uv::iotask;
 import uv::iotask::iotask;
 
-
+// bot imports
+import conf;
 
 
 fn main() {
@@ -34,17 +35,20 @@ fn main() {
     
     #info[ "Connected" ];
     
-    loop {
+    while bot.is_connected() {
         bot.read_line();
-        bot.disconnect("Bye");
     }
     
     println("Done");
 }
 
+
+
+
 class Bot {
     
     priv {
+        let conf: conf::map_conf;
         let sock: @tcp_socket_buf;
         let mut connected: bool;
     }
@@ -54,10 +58,13 @@ class Bot {
     //  * Creates a new bot that connects to host:port
     //  * 
     //  * # Arguments
-    //  * * `host` -- The host name of the target
-    //  * * `port` -- The target port
+    //  * * `conf` -- The configuration for the bot
     //  */
-    new(host:str, port:uint) {
+    new(conf: conf::map_conf) {
+        
+        self.conf = conf;
+        let host = conf.get_first("host").get();
+        let port = conf.get_uint("port").get();
         
         #info[ "Getting ip for host %s", host ];
         let ip = ip::v4::parse_addr(host);
@@ -68,8 +75,7 @@ class Bot {
         let res = socket::connect(ip, port, task);
         
         if res.is_err() {
-            let err <- res.get_err();
-            #error[ "Failed to connect to target: %?", err ];
+            #error[ "Failed to connect to target: %?", res.get_err() ];
             // UGLY, but needed - flow analysis else thinks the sock is not set
             let unbuffered = result::unwrap(res);
             self.sock = @socket::socket_buf(unbuffered);
@@ -151,5 +157,9 @@ class Bot {
     fn disconnect(reason: str) {
         self.send_raw("QUIT :" + reason);
         self.connected = false;
+    }
+    
+    fn is_connected() -> bool {
+        ret self.connected;
     }
 }
