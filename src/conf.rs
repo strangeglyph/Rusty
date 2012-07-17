@@ -14,6 +14,8 @@ import std::map::*;
 
 export load;
 export save;
+export map_conf;
+export conf;
 
 
 type map_conf = {backend: map::hashmap<str, ~[str]>};

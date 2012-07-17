@@ -25,13 +25,15 @@ import uv::iotask::iotask;
 
 // bot imports
 import conf;
+import conf::conf;
 
 
 fn main() {
     
     #debug[ "Entering main method" ];
     
-    let bot = Bot("178.79.132.147", 6667); // esper
+    let conf = conf::load("bot.conf").get();
+    let bot = Bot(conf);
     
     #info[ "Connected" ];
     
