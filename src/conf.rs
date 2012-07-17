@@ -18,24 +18,24 @@ export map_conf;
 export conf;
 
 
-type map_conf = {backend: map::hashmap<str, ~[str]>};
+type map_conf = {backend: map::hashmap<~str, ~[~str]>};
 
 iface conf {
-    fn get(key: str) -> result<~[str], ()>;
-    fn get_default(key: str, default: ~[str]) -> ~[str];
-    fn get_first(key: str) -> result<~str, ()>;
-    fn get_int(key: str) -> result<int, ()>;
-    fn get_uint(key: str) -> result<uint, ()>;
+    fn get(key: ~str) -> result<~[~str], ()>;
+    fn get_default(key: ~str, default: ~[~str]) -> ~[~str];
+    fn get_first(key: ~str) -> result<~str, ()>;
+    fn get_int(key: ~str) -> result<int, ()>;
+    fn get_uint(key: ~str) -> result<uint, ()>;
     
-    fn set(key: str, options: ~[str]) -> bool;
-    fn append(key: str, options: ~[str]);
+    fn set(key: ~str, options: ~[~str]) -> bool;
+    fn append(key: ~str, options: ~[~str]);
     
-    fn _backend() -> map::hashmap<str, ~[str]>;
+    fn _backend() -> map::hashmap<~str, ~[~str]>;
 }
 
 impl conf for map_conf {
     
-    fn get(key: str) -> result<~[str], ()> {
+    fn get(key: ~str) -> result<~[~str], ()> {
         if self.backend.contains_key(key.trim().to_lower()) {
             result::ok(self.backend.get(key.trim().to_lower()))
         } else {
@@ -43,7 +43,7 @@ impl conf for map_conf {
         }
     }
     
-    fn get_default(key: str, default: ~[str]) -> ~[str] {
+    fn get_default(key: ~str, default: ~[~str]) -> ~[~str] {
         let contents = self.get(key);
         
         if contents.is_err() {
@@ -53,7 +53,7 @@ impl conf for map_conf {
         }
     }
     
-    fn get_first(key: str) -> result<str, ()> {
+    fn get_first(key: ~str) -> result<~str, ()> {
         let contents = self.get(key);
         
         if contents.is_err() { 
@@ -65,7 +65,7 @@ impl conf for map_conf {
         }
     }
     
-    fn get_int(key: str) -> result<int, ()> {
+    fn get_int(key: ~str) -> result<int, ()> {
         let first = self.get_first(key);
         
         if first.is_err() {
@@ -81,7 +81,7 @@ impl conf for map_conf {
         }
     }
     
-    fn get_uint(key: str) -> result<uint, ()> {
+    fn get_uint(key: ~str) -> result<uint, ()> {
         let first = self.get_first(key);
         
         if first.is_err() {
@@ -97,11 +97,11 @@ impl conf for map_conf {
         }
     }
     
-    fn set(key: str, options: ~[str]) -> bool {
+    fn set(key: ~str, options: ~[~str]) -> bool {
         self.backend.insert(key.trim().to_lower(), options)
     }
     
-    fn append(key: str, options: ~[str]) {
+    fn append(key: ~str, options: ~[~str]) {
         let mut existing = ~[];
         
         if self.backend.contains_key(key.trim().to_lower()) {
@@ -113,7 +113,7 @@ impl conf for map_conf {
         self.set(key, existing);
     }
     
-    fn _backend() -> map::hashmap<str, ~[str]> {
+    fn _backend() -> map::hashmap<~str, ~[~str]> {
         self.backend
     }
 }
@@ -132,7 +132,7 @@ fn conf() -> map_conf {
  * # Returns
  * The hashmap if everything went well, an error otherwise.
  */
-fn load(filename: str) -> result<map_conf, str> {
+fn load(filename: ~str) -> result<map_conf, ~str> {
     
     #debug[ "Opening conf file '%s'", filename ];
     
@@ -150,7 +150,7 @@ fn load(filename: str) -> result<map_conf, str> {
         
         // Break when end of file is reached, skip empty lines and comments
         if reader.eof() { break; }
-        if line == "" || line.starts_with("#") { again; }
+        if line == ~"" || line.starts_with(~"#") { again; }
         
         #debug[ "conf read line from %s: '%s'", filename, line ];
         
@@ -178,7 +178,7 @@ fn load(filename: str) -> result<map_conf, str> {
  * # Returns
  * result::ok if everything went okay, result::err if an error occurred
  */
-fn save(conf: conf, filename: str) -> result<(), str> {
+fn save(conf: conf, filename: ~str) -> result<(), ~str> {
     
     let flags = ~[io::create, io::truncate];
     let result = io::mk_file_writer(filename, flags);
@@ -207,15 +207,15 @@ fn save(conf: conf, filename: str) -> result<(), str> {
  * # Returns
  * The vector, joined into a single string.
  */
-fn vec_to_str(vec: ~[str]) -> str {
+fn vec_to_str(vec: ~[~str]) -> ~str {
     
-    let mut res = "";
+    let mut res = ~"";
     let mut first = true;
     
     for vec.each |part| {
-        if part.trim() == "" { again; } // Don't add empty strings
+        if part.trim() == ~"" { again; } // Don't add empty strings
         
-        if (!first) { res += ";"; }     // Add separators
+        if (!first) { res += ~";"; }     // Add separators
         else        { first = false; }  
 
         res += part.trim();             // Remove superfluous whitespace
@@ -226,50 +226,50 @@ fn vec_to_str(vec: ~[str]) -> str {
 
 #[test]
 fn test_load() {
-    load("bot.conf");
+    load(~"bot.conf");
 }
 
 #[test]
 fn test_completeness() {
-    let result = load("bot.conf");
+    let result = load(~"bot.conf");
     
     assert result.is_ok();
     
     let conf = result.get();
     
-    assert conf.get("nick").is_ok();
-    assert conf.get("user").is_ok();
-    assert conf.get("desc").is_ok();
-    assert conf.get("host").is_ok();
-    assert conf.get("port").is_ok();
-    assert conf.get("chan").is_ok();
+    assert conf.get(~"nick").is_ok();
+    assert conf.get(~"user").is_ok();
+    assert conf.get(~"desc").is_ok();
+    assert conf.get(~"host").is_ok();
+    assert conf.get(~"port").is_ok();
+    assert conf.get(~"chan").is_ok();
 }
 
 #[test]
 fn test_multi_items() {
-    let result = load("bot.conf");
+    let result = load(~"bot.conf");
     let conf = result.get();
-    let chans = conf.get("chan").get();
+    let chans = conf.get(~"chan").get();
     
     assert chans.len() == 6;
-    assert vec::contains(chans, "#a");
-    assert vec::contains(chans, "#b");
-    assert vec::contains(chans, "#c");
-    assert vec::contains(chans, "#d");
-    assert vec::contains(chans, "#e");
-    assert vec::contains(chans, "#f");
+    assert vec::contains(chans, ~"#a");
+    assert vec::contains(chans, ~"#b");
+    assert vec::contains(chans, ~"#c");
+    assert vec::contains(chans, ~"#d");
+    assert vec::contains(chans, ~"#e");
+    assert vec::contains(chans, ~"#f");
 }
 
 #[test]
 fn test_vec2str() {
-    let vec1 = ~["a","b","c","d","e"];
-    let str1 = "a;b;c;d;e";
-    let vec2 = ~["ab", "cde"];
-    let str2 = "ab;cde";
-    let vec3 = ~["     abc    ", "     de"];
-    let str3 = "abc;de";
-    let vec4 = ~["abcde"];
-    let str4 = "abcde";
+    let vec1 = ~[~"a",~"b",~"c",~"d",~"e"];
+    let str1 = ~"a;b;c;d;e";
+    let vec2 = ~[~"ab", ~"cde"];
+    let str2 = ~"ab;cde";
+    let vec3 = ~[~"     abc    ", ~"     de"];
+    let str3 = ~"abc;de";
+    let vec4 = ~[~"abcde"];
+    let str4 = ~"abcde";
     
     assert vec_to_str(vec1) == str1;
     assert vec_to_str(vec2) == str2;
