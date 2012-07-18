@@ -1,3 +1,2 @@
 #[crate_type = "bin"]
-mod bot;
 mod conf;

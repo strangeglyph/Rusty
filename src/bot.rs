@@ -7,12 +7,16 @@ import io::println;
 import io::{reader, reader_util};
 import io::{writer, writer_util};
 
+import str;
+import vec;
+
 import to_str;
 import to_str::to_str;
 
 import task;
 
 import result;
+import option;
 
 
 // std imports
@@ -36,15 +40,17 @@ fn main() {
     let bot = Bot(conf);
     
     #info[ "Connected" ];
+    bot.run();
     
-    while bot.is_connected() {
-        bot.read_line();
-    }
     
     println(~"Done");
 }
 
+enum Event {
+    CONNECT
+}
 
+type Listener = {event: Event, handle: fn(data: ~[~str])};
 
 
 class Bot {
@@ -53,6 +59,7 @@ class Bot {
         let conf: conf::map_conf;
         let sock: @tcp_socket_buf;
         let mut connected: bool;
+        let mut listeners: ~[Listener];
     }
 
     // Parser breaks with doc strings over constructors
@@ -65,32 +72,56 @@ class Bot {
     new(conf: conf::map_conf) {
         
         self.conf = conf;
-        let host = conf.get_first(~"host").get();
-        let port = conf.get_uint(~"port").get();
+        self.listeners = ~[];
         
+        let host = self.conf.get_first(~"host").get();
+        let port = self.conf.get_uint(~"port").get();
+            
         #info[ "Getting ip for host %s", host ];
         let ip = ip::v4::parse_addr(host);
         let task = iotask::spawn_iotask(task::builder());
-        
-        
+            
         #info[ "Connecting socket (%s:%u)", host, port ];
         let res = socket::connect(ip, port, task);
-        
-        if res.is_err() {
-            #error[ "Failed to connect to target: %?", res.get_err() ];
-            // UGLY, but needed - flow analysis else thinks the sock is not set
-            let unbuffered = result::unwrap(res);
-            self.sock = @socket::socket_buf(unbuffered);
-            self.connected = false;
-            fail;   // Will have failed already
-        }
-        
-        
+            
         #debug[ "Unwrapping and buffering" ];
         let unbuffered = result::unwrap(res);
-        self.sock = @socket::socket_buf(unbuffered);
-        self.connected = true;
+        self.sock = @socket::socket_buf(unbuffered); 
+            
+        self.connected = true;  
     }
+    
+    fn run() {
+        
+        self.identify();
+        self.change_nick(self.conf.get_first(~"nick").get());
+        
+        while self.is_connected() {
+            
+            let mut recv = self.read_line().trim();
+            
+            if recv.starts_with(~":") { 
+                recv = recv.slice(1, recv.len()); 
+            }
+            
+            if recv.starts_with(~"PING") {
+                self.send_raw(~"PONG :" + recv.slice(6, recv.len()));
+            } else {
+                // Handle stuff
+            }
+        }
+    }
+    
+    fn register_listener(event: Event, fn(data: ~[~str])) {
+        vec::push(self.listeners, {event, data});
+    }
+    
+    fn fire_event(event: Event, data: ~[~str]) {
+        for self.listeners.each |listener| {
+            listener.handle(data);
+        }
+    }
+    
     
     /**
      * Reads a line from the server. Blocks until the read is completed.
@@ -100,7 +131,7 @@ class Bot {
      */
     fn read_line() -> ~str {
 
-        if (!self.connected) { fail ~"Disconnected" };
+        if (!self.is_connected()) { fail ~"Disconnected" };
 
         let read = self.sock as reader;
         let recv = read.read_line();
@@ -117,7 +148,7 @@ class Bot {
      */
     fn send_raw(text: ~str) {
 
-        if (!self.connected) { fail ~"Disconnected" };
+        if (!self.is_connected()) { fail ~"Disconnected" };
 
         let writer = self.sock as writer;
         writer.write_str(text + ~"\r\n");
@@ -161,7 +192,32 @@ class Bot {
         self.connected = false;
     }
     
-    fn is_connected() -> bool {
-        ret self.connected;
+    /**
+     * Tells if the bot is connected to the server.
+     * 
+     * # Returns
+     * * `true` if the bot is connected, `false` otherwise
+     */
+    pure fn is_connected() -> bool {
+        self.connected
+    }
+    
+    fn identify() {
+        let user = self.conf.get_first(~"user").get();
+        let desc = self.conf.get_first(~"desc").get();
+        
+        self.send_raw(~"USER " + user + " * * :" + desc); 
+    }
+    
+    fn change_nick(nick: ~str) {
+        self.send_raw(~"NICK :" + nick);
+    }
+    
+    fn join(room: ~str) {
+        self.send_raw(~"JOIN :" + room);
+    }
+    
+    fn part(room: ~str) {
+        self.send_raw(~"PART :" + room);
     }
 }
